@@ -23,9 +23,11 @@ import config
 # Global flags and variables.
 Model = Vggish
 batch_size = 64
+PLOT_CONFUSION_MATRIX = True
+SAVE_PLOT = True
 
 
-def evaluate(model, generator, data_type, max_iteration, cuda):
+def evaluate(model, generator, data_type, max_iteration, plot_title, workspace, cuda):
     """Evaluate
     
     Args:
@@ -60,10 +62,14 @@ def evaluate(model, generator, data_type, max_iteration, cuda):
 
     loss = F.nll_loss(torch.Tensor(outputs), torch.LongTensor(targets)).numpy()
     loss = float(loss)
+
+    class_wise_accuracy = calculate_accuracy(targets, predictions, classes_num)
     
-    confusion_matrix = calculate_confusion_matrix(targets, predictions, classes_num) # Can be used if confustion matrix is to be plotted.
-    
-    accuracy = calculate_accuracy(targets, predictions, classes_num, average='macro')
+    if PLOT_CONFUSION_MATRIX:
+        confusion_matrix = calculate_confusion_matrix(targets, predictions, classes_num) # Can be used if confustion matrix is to be plotted.
+        plot_confusion_matrix(confusion_matrix, plot_title, config.labels, class_wise_accuracy, SAVE_PLOT, workspace)
+
+    accuracy = np.mean(class_wise_accuracy)
 
     return accuracy, loss
 
@@ -157,6 +163,8 @@ def train(args):
                                          generator=generator,
                                          data_type='train',
                                          max_iteration=None,
+                                         plot_title='train_iter_{}'.format(iteration),
+                                         workspace=workspace,
                                          cuda=cuda)
             best_tr_acc = max(best_tr_acc, tr_acc)
             logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
@@ -167,6 +175,8 @@ def train(args):
                                              generator=generator,
                                              data_type='validate',
                                              max_iteration=None,
+                                             plot_title='val_iter_{}'.format(iteration),
+                                             workspace=workspace,
                                              cuda=cuda)
                 best_va_acc = max(best_va_acc, va_acc)                
                 logging.info('best_va_acc: {:.3f}, va_acc: {:.3f}, va_loss: {:.3f}'.format(best_va_acc, va_acc, va_loss))

@@ -140,7 +140,7 @@ def print_accuracy(class_wise_accuracy, labels):
     print('{:<30}{:.3f}'.format('Average', np.mean(class_wise_accuracy)))
 
 
-def plot_confusion_matrix(confusion_matrix, title, labels, values):
+def plot_confusion_matrix(confusion_matrix, title, labels, values, save_plot, workspace):
     """Plot confusion matrix.
 
     Inputs:
@@ -172,4 +172,9 @@ def plot_confusion_matrix(confusion_matrix, title, labels, values):
     plt.xlabel('Predicted')
     plt.ylabel('Target')
     plt.tight_layout()
-    plt.show()
+    
+    if save_plot:
+        create_folder(os.path.join(workspace, 'plots'))
+        fig.savefig(os.path.join(workspace, 'plots', 'confusion-{}.png'.format(title)))
+    else:
+        plt.show()
