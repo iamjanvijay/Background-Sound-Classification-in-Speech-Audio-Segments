@@ -17,11 +17,10 @@ from data_generator import DataGenerator #, TestDataGenerator
 from utilities import (create_folder, get_filename, create_logging,
                        calculate_confusion_matrix, calculate_accuracy, 
                        plot_confusion_matrix, print_accuracy)
-from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish
+from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordConv
 import config
 
 # Global flags and variables.
-Model = Vggish
 batch_size = 64
 PLOT_CONFUSION_MATRIX = True
 SAVE_PLOT = True
@@ -136,8 +135,14 @@ def train(args):
 
     create_folder(models_dir)
 
-    # Model.
-    model = Model(classes_num)
+    # Choose the model.
+    if args.model == 'vgg':
+        model = Vggish(classes_num)
+    elif args.model == 'vggcoordconv':
+        model = VggishCoordConv(classes_num)
+    else: #args.model == 'baselinecnn'
+        model = BaselineCnn(classes_num)
+
     if cuda:
         model.cuda()
 
@@ -224,7 +229,7 @@ def train(args):
         optimizer.step()
 
         # Stop learning
-        if iteration == 2000:
+        if iteration == args.max_iters:
             break
 
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
@@ -236,6 +241,8 @@ if __name__ == '__main__':
     # Arguments for training mode.
     parser_train = subparsers.add_parser('train')
     parser_train.add_argument('--workspace', type=str, required=True)
+    parser_train.add_argument('--max_iters', type=int, default=4000)
+    parser_train.add_argument('--model', type=str, default='vggcoordconv')
     parser_train.add_argument('--validation_fold', type=int, default=False)
     parser_train.add_argument('--validate', action='store_true', default=False)
     parser_train.add_argument('--cuda', action='store_true', default=False)
@@ -258,8 +265,10 @@ if __name__ == '__main__':
 
     if args.mode == 'train':
         assert(args.validation_fold in range(1, 11))
+        assert(args.model in ['baselinecnn', 'vgg', 'vggcoordconv']) # Valid values for model argument.
         train(args)
     # elif args.mode == 'inference':
     #     inference(args)
     else:
         raise Exception('Error argument!')
+
