@@ -7,11 +7,14 @@ import h5py
 import math
 import time
 import logging
+import datetime
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
+from tensorboardX import SummaryWriter 
 
 from data_generator import DataGenerator #, TestDataGenerator
 from utilities import (create_folder, get_filename, create_logging,
@@ -24,7 +27,6 @@ import config
 batch_size = 64
 PLOT_CONFUSION_MATRIX = True
 SAVE_PLOT = True
-
 
 def evaluate(model, generator, data_type, max_iteration, plot_title, workspace, cuda):
     """Evaluate
@@ -70,7 +72,7 @@ def evaluate(model, generator, data_type, max_iteration, plot_title, workspace, 
 
     accuracy = np.mean(class_wise_accuracy)
 
-    return accuracy, loss
+    return class_wise_accuracy, accuracy, loss
 
 
 def forward(model, generate_func, cuda, return_target):
@@ -118,7 +120,7 @@ def forward(model, generate_func, cuda, return_target):
     return dict
 
 
-def train(args):
+def train(args, writer):
 
     # Arugments.
     workspace = args.workspace
@@ -160,11 +162,11 @@ def train(args):
     for (iteration, (batch_x, batch_y)) in enumerate(generator.generate_train()):
         
         # Evaluate both on training data and validation data. (After every 100 iterations)
-        if iteration % 100 == 0:
+        if iteration % 10 == 0:
 
             train_fin_time = time.time()
 
-            (tr_acc, tr_loss) = evaluate(model=model,
+            (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
                                          generator=generator,
                                          data_type='train',
                                          max_iteration=None,
@@ -173,10 +175,13 @@ def train(args):
                                          cuda=cuda)
             best_tr_acc = max(best_tr_acc, tr_acc)
             logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
+            writer.add_scalar('training_accuracy', tr_acc, iteration)
+            writer.add_scalar('training_loss', tr_loss, iteration)
+            # writer.add_scalars('class_wise_training_accuracy', {labels[i]: cls_tr_acc[i] for i in range(10)}, iterations)
 
             if validate:
                 
-                (va_acc, va_loss) = evaluate(model=model,
+                (cls_va_acc, va_acc, va_loss) = evaluate(model=model,
                                              generator=generator,
                                              data_type='validate',
                                              max_iteration=None,
@@ -185,6 +190,10 @@ def train(args):
                                              cuda=cuda)
                 best_va_acc = max(best_va_acc, va_acc)                
                 logging.info('best_va_acc: {:.3f}, va_acc: {:.3f}, va_loss: {:.3f}'.format(best_va_acc, va_acc, va_loss))
+                writer.add_scalar('validation_accuracy', va_acc, iteration)
+                writer.add_scalar('validation_loss', va_loss, iteration)
+                # writer.add_scalars('class_wise_validation_accuracy', {labels[i]: cls_va_acc[i] for i in range(10)}, iterations)
+
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
@@ -241,8 +250,8 @@ if __name__ == '__main__':
     # Arguments for training mode.
     parser_train = subparsers.add_parser('train')
     parser_train.add_argument('--workspace', type=str, required=True)
-    parser_train.add_argument('--max_iters', type=int, default=4000)
-    parser_train.add_argument('--model', type=str, default='vggcoordconv')
+    parser_train.add_argument('--max_iters', type=int, required=True)
+    parser_train.add_argument('--model', type=str, required=True)
     parser_train.add_argument('--validation_fold', type=int, default=False)
     parser_train.add_argument('--validate', action='store_true', default=False)
     parser_train.add_argument('--cuda', action='store_true', default=False)
@@ -263,12 +272,17 @@ if __name__ == '__main__':
     create_logging(logs_dir, filemode='w')
     logging.info(args)
 
+    # Create tensorboard logs.
+    tb_logs_dir = os.path.join(args.workspace, 'tensorboard-logs', args.filename + '__' + args.model + '__' + str(args.validation_fold) + '__' + str(datetime.datetime.now()))
+    writer = SummaryWriter(tb_logs_dir)
+
     if args.mode == 'train':
         assert(args.validation_fold in range(1, 11))
         assert(args.model in ['baselinecnn', 'vgg', 'vggcoordconv']) # Valid values for model argument.
-        train(args)
+        train(args, writer)
     # elif args.mode == 'inference':
     #     inference(args)
     else:
         raise Exception('Error argument!')
+
 

@@ -188,7 +188,6 @@ class Vggish(nn.Module):
 
         return x
 
-# Adds new feature maps representing (x, y, r) indices to output of previous convolutional layers.
 class AddCoords(nn.Module):
 
     def __init__(self, with_r=False):
@@ -225,7 +224,7 @@ class AddCoords(nn.Module):
 
         return ret
 
-# CoordConv layer. 
+
 class CoordConv(nn.Module):
 
     def __init__(self, in_channels, out_channels, with_r=False, **kwargs):
@@ -302,15 +301,22 @@ class VggishCoordConv(nn.Module):
         (_, seq_len, mel_bins) = input.shape
 
         x = input.view(-1, 1, seq_len, mel_bins) # (samples_num, feature_maps, time_steps, freq_num)
-
+        print(x.shape)
         x = self.conv_block1(x)
+        print(x.shape)
         x = self.conv_block2(x)
+        print(x.shape)
         x = self.conv_block3(x)
+        print(x.shape)
         x = self.conv_block4(x)
+        print(x.shape)
 
         x = F.max_pool2d(x, kernel_size=x.shape[2:])
+        print(x.shape)
         x = x.view(x.shape[0:2])
+        print(x.shape)
 
         x = F.log_softmax(self.fc_final(x), dim=-1)
+        print(x.shape)
 
         return x
