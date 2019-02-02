@@ -5,9 +5,14 @@ from sklearn import metrics
 import logging
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-
+import glob
 import config
 
+
+AUDIO_AUG_MODE_RANDOM = 0
+AUDIO_AUG_MODE_NOISE_DATA = 1
+AUDIO_AUG_MODE_STRETCH = 2
+AUDIO_AUG_MODE_ROLL = 3
 
 def create_folder(fd):
     if not os.path.exists(fd):
@@ -15,6 +20,10 @@ def create_folder(fd):
 
 def read_audio(path, target_fs=None):
     return librosa.core.load(path, sr=target_fs, mono=True, duration=4)
+
+
+def write_audio_file(file_name, audio_data, sample_rate=config.sample_rate):
+    librosa.output.write_wav(file_name, audio_data, sample_rate)
 
 
 def get_filename(path):
@@ -178,3 +187,70 @@ def plot_confusion_matrix(confusion_matrix, title, labels, values, save_plot, wo
         fig.savefig(os.path.join(workspace, 'plots', 'confusion-{}.png'.format(title)))
     else:
         plt.show()
+
+
+def add_noisy_audio(audio_data, noise_data, mixing_parameter):
+    new_data = (1 - mixing_parameter) * audio_data + mixing_parameter * noise_data
+    return new_data
+
+
+def add_random_noise(audio_data, mixing_parameter):
+    noise = np.random.randn(len(audio_data))
+    noisy_data = add_noisy_audio(audio_data, noise, mixing_parameter)
+    return noisy_data
+
+
+def audio_shift(audio_data, shift_count=config.sample_rate):
+    return np.roll(audio_data, shift_count)
+
+
+def audio_stretch(audio_data, rate=1):
+    stretched_data = librosa.effects.time_stretch(audio_data, rate)
+    return stretched_data
+
+
+def augment_audio_data(audio_data, mixing_param=0.005, noise_data=None, mode=AUDIO_AUG_MODE_RANDOM):
+    ret_data = audio_data
+
+    if mode == AUDIO_AUG_MODE_RANDOM:
+        ret_data = add_random_noise(audio_data, mixing_param)
+    elif mode == AUDIO_AUG_MODE_NOISE_DATA:
+        ret_data = add_noisy_audio(audio_data, noise_data, mixing_param)
+    elif mode == AUDIO_AUG_MODE_ROLL:
+        ret_data = audio_shift(audio_data)
+    elif mode == AUDIO_AUG_MODE_STRETCH:
+        ret_data = audio_stretch(audio_data)
+
+    return ret_data
+
+
+def augment_audio_file(audio_file, out_filename=None, mixing_param=0.005, noise_file=None, mode=AUDIO_AUG_MODE_RANDOM):
+    audio_data, fs = read_audio(audio_file, config.sample_rate)
+    noise_data = None
+    if noise_file is not None:
+        noise_data, fs = read_audio(noise_file, config.sample_rate)
+
+    aug_audio = augment_audio_data(audio_data, mixing_param, noise_data, mode)
+
+    if out_filename is not None:
+        write_audio_file(out_filename, aug_audio, config.sample_rate)
+
+    return aug_audio
+
+
+# AUDIO_AUG_MODE_NOISE_DATA - noise_file should be specified which will be mixed with each file in input_folder
+# AUDIO_AUG_MODE_RANDOM - random noise will be added
+# AUDIO_AUG_MODE_ROLL - data will be rolled left to right by 1 sec
+# AUDIO_AUG_MODE_STRETCH - data will be stretched
+def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise_file=None, mode=AUDIO_AUG_MODE_RANDOM):
+    count = 0
+    #create directory if absent
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    for filename in glob.glob(os.path.join(input_folder, '*.wav')):
+        print ("Processing file : {}".format(filename))
+        out_full_path = os.path.join(output_folder, os.path.basename(filename))
+        augment_audio_file(filename, out_full_path, mixing_param, noise_file, mode)
+        count += 1
+    print ("Augmented {} files generated in folder {}".format(count, output_folder))
