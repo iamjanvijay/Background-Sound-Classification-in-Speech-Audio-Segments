@@ -20,13 +20,12 @@ from data_generator import DataGenerator #, TestDataGenerator
 from utilities import (create_folder, get_filename, create_logging,
                        calculate_confusion_matrix, calculate_accuracy, 
                        plot_confusion_matrix, print_accuracy)
-from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordConv
+from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordConv, ResNet18
 import config
 
 # Global flags and variables.
-batch_size = 64
-PLOT_CONFUSION_MATRIX = True
-SAVE_PLOT = True
+PLOT_CONFUSION_MATRIX = False
+SAVE_PLOT = False
 
 def evaluate(model, generator, data_type, max_iteration, plot_title, workspace, cuda):
     """Evaluate
@@ -127,6 +126,8 @@ def train(args, writer):
     cuda = args.cuda
     validate = args.validate
     validation_fold = args.validation_fold
+    batch_size = args.batch_size
+    learning_rate = args.learning_rate
 
     # Parameters.
     labels = config.labels
@@ -142,6 +143,8 @@ def train(args, writer):
         model = Vggish(classes_num)
     elif args.model == 'vggcoordconv':
         model = VggishCoordConv(classes_num)
+    elif args.model == 'resnet18':
+        model = ResNet18(classes_num)
     else: #args.model == 'baselinecnn'
         model = BaselineCnn(classes_num)
 
@@ -152,7 +155,7 @@ def train(args, writer):
     generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
 
     # Optimizer.
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
 
     train_bgn_time = time.time()
 
@@ -162,7 +165,7 @@ def train(args, writer):
     for (iteration, (batch_x, batch_y)) in enumerate(generator.generate_train()):
         
         # Evaluate both on training data and validation data. (After every 100 iterations)
-        if iteration % 10 == 0:
+        if iteration % 100 == 0:
 
             train_fin_time = time.time()
 
@@ -255,6 +258,8 @@ if __name__ == '__main__':
     parser_train.add_argument('--validation_fold', type=int, default=False)
     parser_train.add_argument('--validate', action='store_true', default=False)
     parser_train.add_argument('--cuda', action='store_true', default=False)
+    parser_train.add_argument('--learning_rate', default=0.001, type=float)
+    parser_train.add_argument('--batch_size', default=64, type=int)
 
     # Arguments for inference mode. [Can be added, if required].
     # parser_inference_evaluation_data = subparsers.add_parser('inference')
@@ -278,11 +283,10 @@ if __name__ == '__main__':
 
     if args.mode == 'train':
         assert(args.validation_fold in range(1, 11))
-        assert(args.model in ['baselinecnn', 'vgg', 'vggcoordconv']) # Valid values for model argument.
+        assert(args.model in ['baselinecnn', 'vgg', 'vggcoordconv', 'resnet18']) # Valid values for model argument.
         train(args, writer)
     # elif args.mode == 'inference':
     #     inference(args)
     else:
         raise Exception('Error argument!')
-
 
