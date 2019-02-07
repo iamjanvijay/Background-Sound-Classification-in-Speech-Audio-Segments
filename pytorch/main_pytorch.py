@@ -8,6 +8,7 @@ import math
 import time
 import logging
 import datetime
+import random
 
 import torch
 import torch.nn as nn
@@ -26,6 +27,12 @@ import config
 # Global flags and variables.
 PLOT_CONFUSION_MATRIX = False
 SAVE_PLOT = False
+
+# Setting seeds.
+torch.cuda.manual_seed(config.seed)
+torch.manual_seed(config.seed)
+np.random.seed(config.seed)
+random.seed(config.seed)
 
 def evaluate(model, generator, data_type, max_iteration, plot_title, workspace, cuda):
     """Evaluate
@@ -128,6 +135,9 @@ def train(args, writer):
     validation_fold = args.validation_fold
     batch_size = args.batch_size
     learning_rate = args.learning_rate
+    ckpt_interval = args.ckpt_interval
+    val_interval = args.val_interval
+    lrdecay_interval = args.lrdecay_interval
 
     # Parameters.
     labels = config.labels
@@ -165,7 +175,7 @@ def train(args, writer):
     for (iteration, (batch_x, batch_y)) in enumerate(generator.generate_train()):
         
         # Evaluate both on training data and validation data. (After every 100 iterations)
-        if iteration % 100 == 0:
+        if iteration % val_interval == 0:
 
             train_fin_time = time.time()
 
@@ -176,6 +186,7 @@ def train(args, writer):
                                          plot_title='train_iter_{}'.format(iteration),
                                          workspace=workspace,
                                          cuda=cuda)
+
             best_tr_acc = max(best_tr_acc, tr_acc)
             logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
             writer.add_scalar('training_accuracy', tr_acc, iteration)
@@ -191,6 +202,7 @@ def train(args, writer):
                                              plot_title='val_iter_{}'.format(iteration),
                                              workspace=workspace,
                                              cuda=cuda)
+
                 best_va_acc = max(best_va_acc, va_acc)                
                 logging.info('best_va_acc: {:.3f}, va_acc: {:.3f}, va_loss: {:.3f}'.format(best_va_acc, va_acc, va_loss))
                 writer.add_scalar('validation_accuracy', va_acc, iteration)
@@ -201,6 +213,7 @@ def train(args, writer):
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
 
+            writer.add_scalar('learning_rate', learning_rate, iteration)
             logging.info(
                 'iteration: {}, train time: {:.3f} s, validate time: {:.3f} s'
                     ''.format(iteration, train_time, validate_time))
@@ -210,7 +223,7 @@ def train(args, writer):
             train_bgn_time = time.time()
 
         # Save model
-        if iteration % 1000 == 0 and iteration > 0:
+        if iteration % ckpt_interval == 0 and iteration > 0:
 
             save_out_dict = {'iteration': iteration,
                              'state_dict': model.state_dict(),
@@ -222,9 +235,10 @@ def train(args, writer):
             logging.info('Model saved to {}'.format(save_out_path))
             
         # Reduce learning rate
-        if iteration % 200 == 0 > 0:
+        if iteration % lrdecay_interval == 0 and iteration > 0:
+            learning_rate *= 0.9
             for param_group in optimizer.param_groups:
-                param_group['lr'] *= 0.9
+                param_group['lr'] = learning_rate
 
         # Train : That's where the training begins.
         audios_num = batch_y.shape[0]
@@ -260,6 +274,9 @@ if __name__ == '__main__':
     parser_train.add_argument('--cuda', action='store_true', default=False)
     parser_train.add_argument('--learning_rate', default=0.001, type=float)
     parser_train.add_argument('--batch_size', default=64, type=int)
+    parser_train.add_argument('--ckpt_interval', default=1000, type=int)
+    parser_train.add_argument('--val_interval', default=100, type=int)
+    parser_train.add_argument('--lrdecay_interval', default=200, type=int)
 
     # Arguments for inference mode. [Can be added, if required].
     # parser_inference_evaluation_data = subparsers.add_parser('inference')

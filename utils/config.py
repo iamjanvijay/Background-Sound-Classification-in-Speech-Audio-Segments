@@ -4,6 +4,8 @@ overlap = 336
 seq_len = 127 # Depends on sample_rate (number of samples in audio of 4 seconds), window_size, and overlap. How did I calculate? Looked for the shape mismatch error in the logs.
 mel_bins = 64
 
+seed = 1234
+
 # Mappings: (as defined in metadata.csv)
 # 0 = air_conditioner
 # 1 = car_horn

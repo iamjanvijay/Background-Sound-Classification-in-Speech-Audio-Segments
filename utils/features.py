@@ -65,10 +65,6 @@ def calculate_logmel(audio_path, sample_rate, feature_extractor):
     
     # Read audio (first 4 seconds only).
     (audio, fs) = read_audio(audio_path, target_fs=sample_rate)
-
-    # If audio length is less than 4 seconds, appends silence (zeros) at end.
-    if fs * 4 != len(audio):
-        audio = np.concatenate((audio, np.zeros(fs * 4 - len(audio))))
     
     # Extract feature
     feature = feature_extractor.transform(audio)

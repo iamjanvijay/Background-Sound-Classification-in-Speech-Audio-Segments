@@ -19,8 +19,13 @@ def create_folder(fd):
         os.makedirs(fd)
 
 def read_audio(path, target_fs=None):
-    return librosa.core.load(path, sr=target_fs, mono=True, duration=4)
+    audio, fs = librosa.core.load(path, sr=target_fs, mono=True, duration=4)
 
+    # If audio length is less than 4 seconds, appends silence (zeros) at end.
+    if fs * 4 != len(audio):
+        audio = np.concatenate((audio, np.zeros(fs * 4 - len(audio))))
+
+    return audio, fs
 
 def write_audio_file(file_name, audio_data, sample_rate=config.sample_rate):
     librosa.output.write_wav(file_name, audio_data, sample_rate)
@@ -242,15 +247,34 @@ def augment_audio_file(audio_file, out_filename=None, mixing_param=0.005, noise_
 # AUDIO_AUG_MODE_RANDOM - random noise will be added
 # AUDIO_AUG_MODE_ROLL - data will be rolled left to right by 1 sec
 # AUDIO_AUG_MODE_STRETCH - data will be stretched
-def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise_file=None, mode=AUDIO_AUG_MODE_RANDOM):
+def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise_file=None, mode=AUDIO_AUG_MODE_RANDOM, recursive=False):
     count = 0
-    #create directory if absent
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
 
-    for filename in glob.glob(os.path.join(input_folder, '*.wav')):
-        print ("Processing file : {}".format(filename))
-        out_full_path = os.path.join(output_folder, os.path.basename(filename))
-        augment_audio_file(filename, out_full_path, mixing_param, noise_file, mode)
-        count += 1
-    print ("Augmented {} files generated in folder {}".format(count, output_folder))
+    #create directory if absent
+    create_folder(output_folder)
+
+    if recursive:
+        for dirName, subdirList, fileList in os.walk(input_folder):
+
+            for subdir in subdirList:
+                new_folder_path = os.path.join(output_folder, os.path.relpath(os.path.join(dirName, subdir), input_folder))
+                print("Creating folder : {}".format(new_folder_path))
+                create_folder(new_folder_path)
+
+            print("Processing folder {}".format(dirName))
+
+            for file in fileList:
+                if file.endswith('.wav'):
+                    filepath = os.path.join(dirName, file)
+                    print ("Processing file : {}".format(filepath))
+                    out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_folder))
+                    augment_audio_file(filepath, out_full_path, mixing_param, noise_file, mode)
+                    count += 1
+    else:
+        for filename in glob.glob(os.path.join(input_folder, '*.wav')):
+            print("Processing file : {}".format(filename))
+            out_full_path = os.path.join(output_folder, os.path.basename(filename))
+            augment_audio_file(filename, out_full_path, mixing_param, noise_file, mode)
+            count += 1
+
+    print("Augmented {} files generated in folder {}".format(count, output_folder))
