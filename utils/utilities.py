@@ -18,18 +18,21 @@ def create_folder(fd):
     if not os.path.exists(fd):
         os.makedirs(fd)
 
-def read_audio(path, target_fs=None):
+def read_audio(path, target_fs=None, mode='repeat'):
     audio, fs = librosa.core.load(path, sr=target_fs, mono=True, duration=4)
 
     # If audio length is less than 4 seconds, appends silence (zeros) at end.
-    if fs * 4 != len(audio):
-        audio = np.concatenate((audio, np.zeros(fs * 4 - len(audio))))
+    target_num_samples = fs * 4
+    if target_num_samples != len(audio):
+        if mode == 'append_zeros':
+            audio = np.concatenate((audio, np.zeros(target_num_samples - len(audio))))
+        else: # mode == 'repeat':
+            audio = np.tile(audio, int(target_num_samples / len(audio)) + 1)[:target_num_samples]
 
     return audio, fs
 
 def write_audio_file(file_name, audio_data, sample_rate=config.sample_rate):
     librosa.output.write_wav(file_name, audio_data, sample_rate)
-
 
 def get_filename(path):
     path = os.path.realpath(path)
