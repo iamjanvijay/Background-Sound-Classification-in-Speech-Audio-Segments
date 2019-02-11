@@ -14,6 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.backends.cudnn as cudnn
 
 from tensorboardX import SummaryWriter 
 
@@ -33,6 +34,9 @@ torch.cuda.manual_seed(config.seed)
 torch.manual_seed(config.seed)
 np.random.seed(config.seed)
 random.seed(config.seed)
+
+cudnn.benchmark = False
+cudnn.deterministic = True
 
 def evaluate(model, generator, data_type, max_iteration, plot_title, workspace, cuda):
     """Evaluate

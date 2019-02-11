@@ -8,12 +8,6 @@ import torch.nn.functional as F
 
 import config
 
-# Setting seeds.
-torch.cuda.manual_seed(config.seed)
-torch.manual_seed(config.seed)
-np.random.seed(config.seed)
-random.seed(config.seed)
-
 def move_data_to_gpu(x, cuda):
 
     if 'float' in str(x.dtype):
