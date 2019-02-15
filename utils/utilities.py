@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import glob
 import config
-
+import shutil
 
 AUDIO_AUG_MODE_RANDOM = 0
 AUDIO_AUG_MODE_NOISE_DATA = 1
@@ -273,6 +273,10 @@ def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise
                     out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_folder))
                     augment_audio_file(filepath, out_full_path, mixing_param, noise_file, mode)
                     count += 1
+                else: # Copy other files as it as.
+                    filepath = os.path.join(dirName, file)
+                    out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_folder))
+                    shutil.copy2(filepath, out_full_path)
     else:
         for filename in glob.glob(os.path.join(input_folder, '*.wav')):
             print("Processing file : {}".format(filename))

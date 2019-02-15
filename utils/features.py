@@ -113,6 +113,8 @@ def calculate_features(args):
     # Arguments. 
     dataset_dir = args.dataset_dir
     workspace = args.workspace
+    features_type = args.mode
+    features_file_name = args.features_file_name
 
     # Parameters for feature extraction.
     sample_rate = config.sample_rate
@@ -134,7 +136,7 @@ def calculate_features(args):
     # Paths
     audio_dir = os.path.join(dataset_dir, 'audio') 
     meta_csv = os.path.join(dataset_dir, 'metadata', 'UrbanSound8K.csv') 
-    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'logmel-features.h5') 
+    hdf5_path = os.path.join(workspace, 'features', features_type, features_file_name) 
 
     # Displaying paths.
     print("Reading audio from: {}".format(audio_dir))
@@ -211,7 +213,7 @@ if __name__ == '__main__':
     parser_logmel = subparsers.add_parser('logmel')
     parser_logmel.add_argument('--dataset_dir', type=str, required=True) # Path to the UrbanSound8K folder.
     parser_logmel.add_argument('--workspace', type=str, required=True) # Directory where extracted features, model and logs of experiments are stored.
-    
+    parser_logmel.add_argument('--features_file_name', type=str, required=True) # logmel-features.h5
     args = parser.parse_args()
     
     if args.mode == 'logmel':

@@ -142,12 +142,18 @@ def train(args, writer):
     ckpt_interval = args.ckpt_interval
     val_interval = args.val_interval
     lrdecay_interval = args.lrdecay_interval
+    features_type = args.features_type # logmel
+    features_file_name = args.features_file_name # logmel-feature.h5
+    if validate:
+        va_features_file_name = args.va_features_file_name
 
     # Parameters.
     labels = config.labels
 
     classes_num = len(labels)
-    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'logmel-features.h5') # Features to be used for training.
+    hdf5_path = os.path.join(workspace, 'features', features_type, features_file_name) # Features to be used for training.
+    if validate:
+        va_hdf5_path = os.path.join(workspace, 'features', features_type, va_features_file_name)
     models_dir = os.path.join(workspace, 'models') # Directory to save models.
 
     create_folder(models_dir)
@@ -167,6 +173,8 @@ def train(args, writer):
 
     # Data generator.
     generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
+    if validate:
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
 
     # Optimizer.
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
@@ -200,7 +208,7 @@ def train(args, writer):
             if validate:
                 
                 (cls_va_acc, va_acc, va_loss) = evaluate(model=model,
-                                             generator=generator,
+                                             generator=va_generator,
                                              data_type='validate',
                                              max_iteration=None,
                                              plot_title='val_iter_{}'.format(iteration),
@@ -281,6 +289,9 @@ if __name__ == '__main__':
     parser_train.add_argument('--ckpt_interval', default=1000, type=int)
     parser_train.add_argument('--val_interval', default=100, type=int)
     parser_train.add_argument('--lrdecay_interval', default=200, type=int)
+    parser_train.add_argument('--features_type', default='logmel', type=str)
+    parser_train.add_argument('--features_file_name', required=True, type=str)
+    parser_train.add_argument('--va_features_file_name', required=True, type=str)
 
     # Arguments for inference mode. [Can be added, if required].
     # parser_inference_evaluation_data = subparsers.add_parser('inference')
