@@ -9,8 +9,6 @@ import glob
 import config
 import shutil
 
-from features import read_meta
-
 AUDIO_AUG_MODE_RANDOM = 0
 AUDIO_AUG_MODE_NOISE_DATA = 1
 AUDIO_AUG_MODE_STRETCH = 2
@@ -35,6 +33,43 @@ def read_audio(path, target_fs=None, mode='repeat'):
 
 def write_audio_file(file_name, audio_data, sample_rate=config.sample_rate):
     librosa.output.write_wav(file_name, audio_data, sample_rate)
+
+
+def read_meta(meta_csv):
+    
+    df = pd.read_csv(meta_csv, sep=',')
+    df = pd.DataFrame(df)
+    
+    audio_names = [] # The name of the audio file.
+    fs_IDs = [] # The Freesound ID of the recording from which this excerpt (slice) is taken
+    start_times = [] # The start time of the slice in the original Freesound recording
+    end_times = [] # The end time of slice in the original Freesound recording
+    saliences = [] # A (subjective) salience rating of the sound. 1 = foreground, 2 = background.
+    folds = [] # The fold number (1-10) to which this file has been allocated.
+    class_IDs = [] # A numeric identifier of the sound class.
+    classes = [] # The class name: air_conditioner, car_horn, children_playing, dog_bark, drilling, engine_idling, gun_shot, jackhammer, siren, street_music.
+    
+    for row in df.iterrows():
+        audio_name = row[1]['slice_file_name']
+        fs_ID = row[1]['fsID']
+        start_time = row[1]['start']
+        end_time = row[1]['end']
+        salience = row[1]['salience']
+        fold = row[1]['fold']
+        class_ID = row[1]['classID']
+        classs = row[1]['class']
+        
+        audio_names.append(audio_name)
+        fs_IDs.append(fs_ID)
+        start_times.append(start_time)
+        end_times.append(end_time)
+        saliences.append(salience)
+        folds.append(fold)
+        class_IDs.append(class_ID)
+        classes.append(classs)
+        
+    return audio_names, fs_IDs, start_times, end_times, saliences, folds, class_IDs, classes
+
 
 def get_filename(path):
     path = os.path.realpath(path)
