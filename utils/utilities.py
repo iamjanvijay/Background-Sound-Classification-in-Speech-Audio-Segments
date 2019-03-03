@@ -9,6 +9,8 @@ import glob
 import config
 import shutil
 
+from features import read_meta
+
 AUDIO_AUG_MODE_RANDOM = 0
 AUDIO_AUG_MODE_NOISE_DATA = 1
 AUDIO_AUG_MODE_STRETCH = 2
@@ -285,3 +287,43 @@ def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise
             count += 1
 
     print("Augmented {} files generated in folder {}".format(count, output_folder))
+
+
+def separate_fg_bg(input_folder, output_folder):
+    meta_csv = os.path.join(input_folder, 'metadata/UrbanSound8K.csv')
+
+    audio_names, fs_IDs, start_times, end_times, saliences, folds, class_IDs, classes = read_meta(meta_csv)
+    saliences_dict = {}
+
+    for i, audio_name in enumerate(audio_names):
+        saliences_dict[audio_name] = saliences[i]
+
+    create_folder(output_folder)
+    create_folder(os.path.join(output_folder, 'UrbanSound8K_bg'))
+    create_folder(os.path.join(output_folder, 'UrbanSound8K_fg'))
+
+    for dirName, subdirList, fileList in os.walk(input_folder):
+
+        for subdir in subdirList:
+            new_folder_path = os.path.join(output_folder, os.path.relpath(os.path.join(dirName, subdir), input_folder))
+            print("Creating folder : {}".format(new_folder_path))
+            create_folder(new_folder_path)
+
+        print("Processing folder {}".format(dirName))
+
+        for file in fileList:
+            if file.endswith('.wav'):
+                filepath = os.path.join(dirName, file)
+                print ("Processing file : {}".format(filepath))
+                if saliences_dict[file] == 1: #Foreground
+                    out_full_path = os.path.join(output_folder, 'UrbanSound8K_fg', os.path.relpath(filepath, input_folder))
+                else: #Background
+                    out_full_path = os.path.join(output_folder, 'UrbanSound8K_bg', os.path.relpath(filepath, input_folder))
+                shutil.copy2(filepath, out_full_path)
+                count += 1
+            else: # Copy other files as it as.
+                filepath = os.path.join(dirName, file)
+                out_full_path = os.path.join(output_folder, 'UrbanSound8K_fg', os.path.relpath(filepath, input_folder))
+                shutil.copy2(filepath, out_full_path)
+                out_full_path = os.path.join(output_folder, 'UrbanSound8K_bg', os.path.relpath(filepath, input_folder))
+                shutil.copy2(filepath, out_full_path)                
