@@ -26,8 +26,8 @@ from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordCon
 import config
 
 # Global flags and variables.
-PLOT_CONFUSION_MATRIX = False
-SAVE_PLOT = False
+PLOT_CONFUSION_MATRIX = True
+SAVE_PLOT = True
 
 # Setting seeds.
 torch.cuda.manual_seed(config.seed)
@@ -191,18 +191,18 @@ def train(args, writer):
 
             train_fin_time = time.time()
 
-            (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
-                                         generator=generator,
-                                         data_type='train',
-                                         max_iteration=None,
-                                         plot_title='train_iter_{}'.format(iteration),
-                                         workspace=workspace,
-                                         cuda=cuda)
+            # (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
+            #                              generator=generator,
+            #                              data_type='train',
+            #                              max_iteration=None,
+            #                              plot_title='train_iter_{}'.format(iteration),
+            #                              workspace=workspace,
+            #                              cuda=cuda)
 
-            best_tr_acc = max(best_tr_acc, tr_acc)
-            logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
-            writer.add_scalar('training_accuracy', tr_acc, iteration)
-            writer.add_scalar('training_loss', tr_loss, iteration)
+            # best_tr_acc = max(best_tr_acc, tr_acc)
+            # logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
+            # writer.add_scalar('training_accuracy', tr_acc, iteration)
+            # writer.add_scalar('training_loss', tr_loss, iteration)
             # writer.add_scalars('class_wise_training_accuracy', {labels[i]: cls_tr_acc[i] for i in range(10)}, iterations)
 
             if validate:
@@ -211,7 +211,7 @@ def train(args, writer):
                                              generator=va_generator,
                                              data_type='validate',
                                              max_iteration=None,
-                                             plot_title='val_iter_{}'.format(iteration),
+                                             plot_title='val_iter_{}'.format(str(iteration) + '-' + features_file_name + '-' + va_features_file_name),
                                              workspace=workspace,
                                              cuda=cuda)
 

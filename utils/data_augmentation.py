@@ -26,7 +26,7 @@ if __name__ == '__main__':
     mode_1_aug.add_argument('--output_folder', type=str, required=True)
 
     # Arguments for augmentation in mode_1.
-    mode_2_aug = subparsers.add_parser('mode_1')
+    mode_2_aug = subparsers.add_parser('mode_2')
     mode_2_aug.add_argument('--audio_dir', type=str, required=True)
     mode_2_aug.add_argument('--output_folder', type=str, required=True)    
 
