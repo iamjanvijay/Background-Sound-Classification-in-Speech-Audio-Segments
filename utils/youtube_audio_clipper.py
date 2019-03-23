@@ -62,18 +62,33 @@ if __name__ == '__main__':
             elif option == 2:
                 for i, filename in enumerate(audio_list):
                     print("{}. {}.".format(i + 1, filename))
-                index = int(
-                    input("Enter audio index 1-{}.\n".format(len(audio_list))))
+                index = int(input("Enter audio index 1-{}.\n".format(len(audio_list))))
+                print ("Reading audio, please wait for some time ..")
                 assert(index >= 1 and index <= len(audio_list))
                 data, sampling_rate = read_audio(index)
                 start_time = str(input("Enter starting clipping time.\n"))
                 time = [float(dur) for dur in start_time.strip().split(':')]
-                seconds = 3600 * time[0] + 60 * \
-                    time[1] + time[2] + time[3] / 100.0
-                clipped_data = data[int(
-                    sampling_rate * seconds):int(sampling_rate * seconds) + sampling_rate * 4]
-                librosa.output.write_wav(os.path.join(args.clipped_audio_dir, "clip_{}_{}".format(
+                seconds = 3600 * time[0] + 60 * time[1] + time[2] + time[3] / 100.0
+
+                end_time = str(input("Enter ending clipping time(enter 0 for single cut).\n"))
+                if end_time == '0':
+                    print('Keeping default end time of 4 seconds ')
+                    end_seconds = seconds + 4
+                else:
+                    end_time = [float(dur) for dur in end_time.strip().split(':')]
+                    end_seconds = 3600 * end_time[0] + 60 * end_time[1] + end_time[2] + end_time[3] / 100.0
+
+                start_index = int(sampling_rate * seconds)
+                end_index = int(sampling_rate * end_seconds)
+                while True:
+                    print("[{}] : Start index : {} , end index {}".format(clip_index, start_index, end_index))
+                    clipped_data = data[start_index: start_index + sampling_rate * 4]
+                    librosa.output.write_wav(os.path.join(args.clipped_audio_dir, "clip_{}_{}".format(
                     clip_index, audio_list[index - 1])), clipped_data, sampling_rate)
-                clip_index+=1
+                    clip_index += 1
+                    # keep a overlap of 2 seconds
+                    start_index += sampling_rate * 2
+                    if (start_index + sampling_rate * 4) > end_index:
+                        break
             else:
                 print("Invalid choice.")
