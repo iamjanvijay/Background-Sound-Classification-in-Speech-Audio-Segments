@@ -272,8 +272,11 @@ def train(args, writer):
 
 def transfer_train(args, writer):
 
-    # Arugments.
-    num_classes = args.num_classes
+    # New Arugments.
+    classes_num = args.classes_num
+    pretrained_ckpt = args.pretrained_ckpt
+
+    # Old Arguments
     workspace = args.workspace
     cuda = args.cuda
     validate = args.validate
@@ -301,10 +304,17 @@ def transfer_train(args, writer):
 
     # Choose the model.
     if args.model == 'vgg':
-        model = Vggish(org_classes_num)
-        for param in model.parameters()
-            print param
+        model = Vggish(classes_num)
 
+        pretrained_dict = torch.load('md_1000_iters.tar')['state_dict'] # Ordered dict containing pretrained-weights.
+        model_dict = model.state_dict()
+
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict) 
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
     # elif args.model == 'vggcoordconv':
     #     model = VggishCoordConv(classes_num)
     # elif args.model == 'resnet18':
@@ -312,107 +322,107 @@ def transfer_train(args, writer):
     # else: #args.model == 'baselinecnn'
     #     model = BaselineCnn(classes_num)
 
-    # if cuda:
-    #     model.cuda()
+    if cuda:
+        model.cuda()
 
-    # # Data generator.
-    # generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
-    # if validate:
-    #     va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
+    # Data generator.
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
+    if validate:
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
 
-    # # Optimizer.
-    # optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
+    # Optimizer.
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
 
-    # train_bgn_time = time.time()
+    train_bgn_time = time.time()
 
-    # best_va_acc = 0
-    # best_tr_acc = 0
-    # # Train on mini batches.
-    # for (iteration, (batch_x, batch_y)) in enumerate(generator.generate_train()):
+    best_va_acc = 0
+    best_tr_acc = 0
+    # Train on mini batches.
+    for (iteration, (batch_x, batch_y)) in enumerate(generator.generate_train()):
         
-    #     # Evaluate both on training data and validation data. (After every 100 iterations)
-    #     if iteration % val_interval == 0:
+        # Evaluate both on training data and validation data. (After every 100 iterations)
+        if iteration % val_interval == 0:
 
-    #         train_fin_time = time.time()
+            train_fin_time = time.time()
 
-    #         # (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
-    #         #                              generator=generator,
-    #         #                              data_type='train',
-    #         #                              max_iteration=None,
-    #         #                              plot_title='train_iter_{}'.format(iteration),
-    #         #                              workspace=workspace,
-    #         #                              cuda=cuda)
+            # (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
+            #                              generator=generator,
+            #                              data_type='train',
+            #                              max_iteration=None,
+            #                              plot_title='train_iter_{}'.format(iteration),
+            #                              workspace=workspace,
+            #                              cuda=cuda)
 
-    #         # best_tr_acc = max(best_tr_acc, tr_acc)
-    #         # logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
-    #         # writer.add_scalar('training_accuracy', tr_acc, iteration)
-    #         # writer.add_scalar('training_loss', tr_loss, iteration)
-    #         # writer.add_scalars('class_wise_training_accuracy', {labels[i]: cls_tr_acc[i] for i in range(10)}, iterations)
+            # best_tr_acc = max(best_tr_acc, tr_acc)
+            # logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
+            # writer.add_scalar('training_accuracy', tr_acc, iteration)
+            # writer.add_scalar('training_loss', tr_loss, iteration)
+            # writer.add_scalars('class_wise_training_accuracy', {labels[i]: cls_tr_acc[i] for i in range(10)}, iterations)
 
-    #         if validate:
+            if validate:
                 
-    #             (cls_va_acc, va_acc, va_loss) = evaluate(model=model,
-    #                                          generator=va_generator,
-    #                                          data_type='validate',
-    #                                          max_iteration=None,
-    #                                          plot_title='val_iter_{}'.format(str(iteration) + '-' + features_file_name + '-' + va_features_file_name),
-    #                                          workspace=workspace,
-    #                                          cuda=cuda)
+                (cls_va_acc, va_acc, va_loss) = evaluate(model=model,
+                                             generator=va_generator,
+                                             data_type='validate',
+                                             max_iteration=None,
+                                             plot_title='val_iter_{}'.format(str(iteration) + '-' + features_file_name + '-' + va_features_file_name),
+                                             workspace=workspace,
+                                             cuda=cuda)
 
-    #             best_va_acc = max(best_va_acc, va_acc)                
-    #             logging.info('best_va_acc: {:.3f}, va_acc: {:.3f}, va_loss: {:.3f}'.format(best_va_acc, va_acc, va_loss))
-    #             writer.add_scalar('validation_accuracy', va_acc, iteration)
-    #             writer.add_scalar('validation_loss', va_loss, iteration)
-    #             # writer.add_scalars('class_wise_validation_accuracy', {labels[i]: cls_va_acc[i] for i in range(10)}, iterations)
+                best_va_acc = max(best_va_acc, va_acc)                
+                logging.info('best_va_acc: {:.3f}, va_acc: {:.3f}, va_loss: {:.3f}'.format(best_va_acc, va_acc, va_loss))
+                writer.add_scalar('validation_accuracy', va_acc, iteration)
+                writer.add_scalar('validation_loss', va_loss, iteration)
+                # writer.add_scalars('class_wise_validation_accuracy', {labels[i]: cls_va_acc[i] for i in range(10)}, iterations)
 
 
-    #         train_time = train_fin_time - train_bgn_time
-    #         validate_time = time.time() - train_fin_time
+            train_time = train_fin_time - train_bgn_time
+            validate_time = time.time() - train_fin_time
 
-    #         writer.add_scalar('learning_rate', learning_rate, iteration)
-    #         logging.info(
-    #             'iteration: {}, train time: {:.3f} s, validate time: {:.3f} s'
-    #                 ''.format(iteration, train_time, validate_time))
+            writer.add_scalar('learning_rate', learning_rate, iteration)
+            logging.info(
+                'iteration: {}, train time: {:.3f} s, validate time: {:.3f} s'
+                    ''.format(iteration, train_time, validate_time))
 
-    #         logging.info('------------------------------------')
+            logging.info('------------------------------------')
 
-    #         train_bgn_time = time.time()
+            train_bgn_time = time.time()
 
-    #     # Save model
-    #     if iteration % ckpt_interval == 0 and iteration > 0:
+        # Save model
+        if iteration % ckpt_interval == 0 and iteration > 0:
 
-    #         save_out_dict = {'iteration': iteration,
-    #                          'state_dict': model.state_dict(),
-    #                          'optimizer': optimizer.state_dict()
-    #                          }
-    #         save_out_path = os.path.join(
-    #             models_dir, 'md_{}_iters.tar'.format(iteration))
-    #         torch.save(save_out_dict, save_out_path)
-    #         logging.info('Model saved to {}'.format(save_out_path))
+            save_out_dict = {'iteration': iteration,
+                             'state_dict': model.state_dict(),
+                             'optimizer': optimizer.state_dict()
+                             }
+            save_out_path = os.path.join(
+                models_dir, 'md_{}_iters.tar'.format(iteration))
+            torch.save(save_out_dict, save_out_path)
+            logging.info('Model saved to {}'.format(save_out_path))
             
-    #     # Reduce learning rate
-    #     if iteration % lrdecay_interval == 0 and iteration > 0:
-    #         learning_rate *= 0.9
-    #         for param_group in optimizer.param_groups:
-    #             param_group['lr'] = learning_rate
+        # Reduce learning rate
+        if iteration % lrdecay_interval == 0 and iteration > 0:
+            learning_rate *= 0.9
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = learning_rate
 
-    #     # Train : That's where the training begins.
-    #     audios_num = batch_y.shape[0]
-    #     batch_x = move_data_to_gpu(batch_x, cuda)
-    #     batch_y = move_data_to_gpu(batch_y.astype(int).reshape(audios_num), cuda) # (audios_num, 1)
+        # Train : That's where the training begins.
+        audios_num = batch_y.shape[0]
+        batch_x = move_data_to_gpu(batch_x, cuda)
+        batch_y = move_data_to_gpu(batch_y.astype(int).reshape(audios_num), cuda) # (audios_num, 1)
 
-    #     model.train()
-    #     batch_output = model(batch_x) # (audios_num, classes_num)
-    #     loss = F.nll_loss(batch_output, batch_y) # output: (N, C) and Target: (N)
+        model.train()
+        batch_output = model(batch_x) # (audios_num, classes_num)
+        loss = F.nll_loss(batch_output, batch_y) # output: (N, C) and Target: (N)
 
-    #     # Backward
-    #     optimizer.zero_grad()
-    #     loss.backward()
-    #     optimizer.step()
+        # Backward
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
 
-    #     # Stop learning
-    #     if iteration == args.max_iters:
-    #         break
+        # Stop learning
+        if iteration == args.max_iters:
+            break
 
 
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
@@ -461,7 +471,7 @@ if __name__ == '__main__':
     parser_train.add_argument('--features_type', default='logmel', type=str)
     parser_train.add_argument('--features_file_name', required=True, type=str)
     parser_train.add_argument('--va_features_file_name', required=True, type=str)
-    parser_train.add_argument('--num_classes', type=int, required=True)
+    parser_train.add_argument('--classes_num', type=int, required=True)
 
     args = parser.parse_args()
 
