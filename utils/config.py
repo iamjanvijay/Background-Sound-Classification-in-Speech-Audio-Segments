@@ -6,7 +6,8 @@ mel_bins = 64
 
 seed = 1234
 
-dataset = 'UrbanSound8K'
+# dataset = 'UrbanSound8K'
+dataset = 'YBSS-150'
 
 if dataset == 'UrbanSound8K':
 	# Mappings: (as defined in metadata.csv) UrbanSound8K Dataset

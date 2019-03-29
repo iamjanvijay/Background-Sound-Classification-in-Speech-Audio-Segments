@@ -242,7 +242,7 @@ def train(args, writer):
                              'optimizer': optimizer.state_dict()
                              }
             save_out_path = os.path.join(
-                models_dir, 'md_{}_iters.tar'.format(iteration))
+                models_dir, 'md_{}_{}_{}_iters.tar'.format(iteration, features_file_name, va_features_file_name))
             torch.save(save_out_dict, save_out_path)
             logging.info('Model saved to {}'.format(save_out_path))
             
@@ -330,9 +330,9 @@ def transfer_train(args, writer):
         model.cuda()
 
     # Data generator.
-    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=10)
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=2)
     if validate:
-        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=10)
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=2)
 
     # Optimizer.
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
@@ -400,7 +400,7 @@ def transfer_train(args, writer):
                              'optimizer': optimizer.state_dict()
                              }
             save_out_path = os.path.join(
-                models_dir, 'md_{}_iters_transfer.tar'.format(iteration))
+                models_dir, 'md_{}_{}_{}_iters_transfer.tar'.format(iteration, features_file_name, va_features_file_name))
             torch.save(save_out_dict, save_out_path)
             logging.info('Model saved to {}'.format(save_out_path))
             
