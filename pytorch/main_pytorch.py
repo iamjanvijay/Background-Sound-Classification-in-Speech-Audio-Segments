@@ -326,9 +326,9 @@ def transfer_train(args, writer):
         model.cuda()
 
     # Data generator.
-    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=10)
     if validate:
-        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=validation_fold)
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=10)
 
     # Optimizer.
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
@@ -396,7 +396,7 @@ def transfer_train(args, writer):
                              'optimizer': optimizer.state_dict()
                              }
             save_out_path = os.path.join(
-                models_dir, 'md_{}_iters.tar'.format(iteration))
+                models_dir, 'md_{}_iters_transfer.tar'.format(iteration))
             torch.save(save_out_dict, save_out_path)
             logging.info('Model saved to {}'.format(save_out_path))
             
@@ -457,21 +457,21 @@ if __name__ == '__main__':
 
     # Arguments for transfer-learning.
     parser_transfer_train = subparsers.add_parser('transfer_train')
-    parser_train.add_argument('--model', type=str, required=True)
-    parser_train.add_argument('--pretrained_ckpt', type=str, required=True)
-    parser_train.add_argument('--workspace', type=str, required=True)
-    parser_train.add_argument('--max_iters', type=int, required=True)
-    parser_train.add_argument('--validate', action='store_true', default=False)
-    parser_train.add_argument('--cuda', action='store_true', default=False)
-    parser_train.add_argument('--learning_rate', default=0.001, type=float)
-    parser_train.add_argument('--batch_size', default=64, type=int)
-    parser_train.add_argument('--ckpt_interval', default=1000, type=int)
-    parser_train.add_argument('--val_interval', default=100, type=int)
-    parser_train.add_argument('--lrdecay_interval', default=200, type=int)
-    parser_train.add_argument('--features_type', default='logmel', type=str)
-    parser_train.add_argument('--features_file_name', required=True, type=str)
-    parser_train.add_argument('--va_features_file_name', required=True, type=str)
-    parser_train.add_argument('--classes_num', type=int, required=True)
+    parser_transfer_train.add_argument('--model', type=str, required=True)
+    parser_transfer_train.add_argument('--pretrained_ckpt', type=str, required=True)
+    parser_transfer_train.add_argument('--workspace', type=str, required=True)
+    parser_transfer_train.add_argument('--max_iters', type=int, required=True)
+    parser_transfer_train.add_argument('--validate', action='store_true', default=False)
+    parser_transfer_train.add_argument('--cuda', action='store_true', default=False)
+    parser_transfer_train.add_argument('--learning_rate', default=0.001, type=float)
+    parser_transfer_train.add_argument('--batch_size', default=64, type=int)
+    parser_transfer_train.add_argument('--ckpt_interval', default=1000, type=int)
+    parser_transfer_train.add_argument('--val_interval', default=100, type=int)
+    parser_transfer_train.add_argument('--lrdecay_interval', default=200, type=int)
+    parser_transfer_train.add_argument('--features_type', default='logmel', type=str)
+    parser_transfer_train.add_argument('--features_file_name', required=True, type=str)
+    parser_transfer_train.add_argument('--va_features_file_name', required=True, type=str)
+    parser_transfer_train.add_argument('--classes_num', type=int, required=True)
 
     args = parser.parse_args()
 
