@@ -273,7 +273,7 @@ def train(args, writer):
 def transfer_train(args, writer):
 
     # New Arugments.
-    classes_num = args.classes_num
+    # classes_num = args.classes_num
     pretrained_ckpt = args.pretrained_ckpt
 
     # Old Arguments
@@ -294,7 +294,7 @@ def transfer_train(args, writer):
     # Parameters.
     labels = config.labels
 
-    org_classes_num = len(labels)
+    classes_num = len(labels)
     hdf5_path = os.path.join(workspace, 'features', features_type, features_file_name) # Features to be used for training.
     if validate:
         va_hdf5_path = os.path.join(workspace, 'features', features_type, va_features_file_name)
@@ -315,6 +315,10 @@ def transfer_train(args, writer):
         model_dict.update(pretrained_dict) 
         # 3. load the new state dict
         model.load_state_dict(model_dict)
+        # 4. freeze model weights for all layers other than fc layers.
+        for name, param in model.named_parameters():
+            if name.startswith('fc_'):
+                param.requires_grad = False
     # elif args.model == 'vggcoordconv':
     #     model = VggishCoordConv(classes_num)
     # elif args.model == 'resnet18':
@@ -471,7 +475,7 @@ if __name__ == '__main__':
     parser_transfer_train.add_argument('--features_type', default='logmel', type=str)
     parser_transfer_train.add_argument('--features_file_name', required=True, type=str)
     parser_transfer_train.add_argument('--va_features_file_name', required=True, type=str)
-    parser_transfer_train.add_argument('--classes_num', type=int, required=True)
+    # parser_transfer_train.add_argument('--classes_num', type=int, required=True)
 
     args = parser.parse_args()
 

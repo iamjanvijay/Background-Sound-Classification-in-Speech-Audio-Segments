@@ -37,9 +37,9 @@ def write_audio_file(file_name, audio_data, sample_rate=config.sample_rate):
     librosa.output.write_wav(file_name, audio_data, sample_rate)
 
 
-def read_meta(meta_csv):
+def read_meta(meta_csv, delimiter):
     
-    df = pd.read_csv(meta_csv, sep=',')
+    df = pd.read_csv(meta_csv, sep=delimiter)
     df = pd.DataFrame(df)
     
     audio_names = [] # The name of the audio file.

@@ -81,6 +81,7 @@ def calculate_features(args):
     features_file_name = args.features_file_name
 
     # Parameters for feature extraction.
+    metadata_delimiter = config.metadata_delimiter
     sample_rate = config.sample_rate
     window_size = config.window_size
     overlap = config.overlap
@@ -115,7 +116,7 @@ def calculate_features(args):
                                         overlap=overlap, 
                                         mel_bins=mel_bins)
 
-    audio_names, fs_IDs, start_times, end_times, saliences, folds, class_IDs, classes = read_meta(meta_csv)
+    audio_names, fs_IDs, start_times, end_times, saliences, folds, class_IDs, classes = read_meta(meta_csv, metadata_delimiter)
 
     # Create hdf5 file
     hf = h5py.File(hdf5_path, 'w')

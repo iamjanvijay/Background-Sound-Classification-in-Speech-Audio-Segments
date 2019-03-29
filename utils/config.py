@@ -6,19 +6,33 @@ mel_bins = 64
 
 seed = 1234
 
-# Mappings: (as defined in metadata.csv)
-# 0 = air_conditioner
-# 1 = car_horn
-# 2 = children_playing
-# 3 = dog_bark
-# 4 = drilling
-# 5 = engine_idling
-# 6 = gun_shot
-# 7 = jackhammer
-# 8 = siren
-# 9 = street_music
+dataset = 'UrbanSound8K'
 
-labels = ['air_conditioner', 'car_horn', 'children_playing', 'dog_bark', 'drilling', 'engine_idling', 'gun_shot', 'jackhammer', 'siren', 'street_music']
+if dataset == 'UrbanSound8K':
+	# Mappings: (as defined in metadata.csv) UrbanSound8K Dataset
+	# 0 = air_conditioner
+	# 1 = car_horn
+	# 2 = children_playing
+	# 3 = dog_bark
+	# 4 = drilling
+	# 5 = engine_idling
+	# 6 = gun_shot
+	# 7 = jackhammer
+	# 8 = siren
+	# 9 = street_music
+	labels = ['air_conditioner', 'car_horn', 'children_playing', 'dog_bark', 'drilling', 'engine_idling', 'gun_shot', 'jackhammer', 'siren', 'street_music']
+	metadata_delimiter = ','
+
+elif dataset == 'YBSS-150':
+	# Mappings: (as defined in metadata.csv) YBSS-150 Dataset
+	# 0 = auto
+	# 1 = crowd
+	# 2 = formula_1
+	# 3 = guitar
+	# 4 = helicopter
+	# 5 = tap_water
+	labels = ['auto', 'crowd', 'formula_1', 'guitar', 'helicopter', 'tap_water']
+	metadata_delimiter = '|'
 
 lb_to_ix = {lb: ix for ix, lb in enumerate(labels)}
 ix_to_lb = {ix: lb for ix, lb in enumerate(labels)}
