@@ -280,7 +280,7 @@ def transfer_train(args, writer):
     workspace = args.workspace
     cuda = args.cuda
     validate = args.validate
-    validation_fold = args.validation_fold
+    # validation_fold = args.validation_fold
     batch_size = args.batch_size
     learning_rate = args.learning_rate
     ckpt_interval = args.ckpt_interval
@@ -306,11 +306,11 @@ def transfer_train(args, writer):
     if args.model == 'vgg':
         model = Vggish(classes_num)
 
-        pretrained_dict = torch.load('md_1000_iters.tar')['state_dict'] # Ordered dict containing pretrained-weights.
+        pretrained_dict = torch.load(pretrained_ckpt)['state_dict'] # Ordered dict containing pretrained-weights.
         model_dict = model.state_dict()
 
         # 1. filter out unnecessary keys
-        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and not k.startswith('fc_')}
         # 2. overwrite entries in the existing state dict
         model_dict.update(pretrained_dict) 
         # 3. load the new state dict
