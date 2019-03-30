@@ -23,6 +23,7 @@ from utilities import (create_folder, get_filename, create_logging,
                        calculate_confusion_matrix, calculate_accuracy, 
                        plot_confusion_matrix, print_accuracy)
 from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordConv, ResNet18
+from sklearn.svm import SVC
 import config
 
 # Global flags and variables.
@@ -470,16 +471,16 @@ def svm_train(args):
         # 3. load the new state dict
         model.load_state_dict(model_dict)
 
-   if cuda:
+    if cuda:
         model.cuda()
 
     # Data generator.
-    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=2)
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=64, validation_fold=2)
     if validate:
-        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=2) 
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=64, validation_fold=2) 
 
 
-    generate_func = generator.generate_validate(data_type='validate',  
+    generate_func = generator.generate_validate(data_type='train',  
                                                 shuffle=False, 
                                                 max_iteration=None)  
     va_generate_func = generator.generate_validate(data_type='validate',  
@@ -492,20 +493,20 @@ def svm_train(args):
                    cuda=cuda, 
                    return_target=True) 
     va_dict = forward(model=model, 
-                   generate_func=generate_func, 
+                   generate_func=va_generate_func, 
                    cuda=cuda, 
                    return_target=True)  
                    
     train_features = dict['output']    # (audios_num, classes_num)
-    train_targets = dict['target']    # (audios_num, 1)     
+    train_targets = dict['target'].squeeze(axis=1)    # (audios_num,)     
 
     val_features = va_dict['output']    # (audios_num, classes_num)
-    val_targets = va_dict['target']    # (audios_num, 1)    
+    val_targets = va_dict['target'].squeeze(axis=1)     # (audios_num,)   
 
-    print("Train features", train_features.shape)    
-    print("Train targets", train_targets.shape)   
-    print("Validation features", val_features.shape)    
-    print("Validation targets", val_targets.shape)  
+    clf = SVC(gamma='auto')
+    clf.fit(train_features, train_targets) 
+    val_predictions = clf.predict(val_features)
+    print("Accuracy by training SVM on deep features:", np.sum(val_targets==val_predictions)/float(len(val_targets)))
 
 
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
