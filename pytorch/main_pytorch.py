@@ -458,7 +458,7 @@ def svm_train(args):
 
     # Choose the model.
     if args.model == 'vgg':
-        model = Vggish(classes_num)
+        model = Vggish(classes_num, conv_features=True)
 
         pretrained_dict = torch.load(pretrained_ckpt)['state_dict'] # Ordered dict containing pretrained-weights.
         model_dict = model.state_dict()
@@ -469,11 +469,9 @@ def svm_train(args):
         model_dict.update(pretrained_dict) 
         # 3. load the new state dict
         model.load_state_dict(model_dict)
-        # 4. remove last fully connected layer
-        truc_model = nn.Sequential(*list(model.children())[:-1])
 
    if cuda:
-        truc_model.cuda()
+        model.cuda()
 
     # Data generator.
     generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=2)
@@ -489,11 +487,11 @@ def svm_train(args):
                                                 max_iteration=None)   
 
     # Forward
-    dict = forward(model=truc_model, 
+    dict = forward(model=model, 
                    generate_func=generate_func, 
                    cuda=cuda, 
                    return_target=True) 
-    va_dict = forward(model=truc_model, 
+    va_dict = forward(model=model, 
                    generate_func=generate_func, 
                    cuda=cuda, 
                    return_target=True)  

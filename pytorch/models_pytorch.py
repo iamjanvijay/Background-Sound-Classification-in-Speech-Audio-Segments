@@ -158,10 +158,11 @@ class VggishConvBlock(nn.Module):
     
     
 class Vggish(nn.Module):
-    def __init__(self, classes_num):
+    def __init__(self, classes_num, conv_features=False):
         
         super(Vggish, self).__init__()
 
+        self.conv_features = conv_features
         self.conv_block1 = VggishConvBlock(in_channels=1, out_channels=64)
         self.conv_block2 = VggishConvBlock(in_channels=64, out_channels=128)
         self.conv_block3 = VggishConvBlock(in_channels=128, out_channels=256)
@@ -189,7 +190,8 @@ class Vggish(nn.Module):
         x = F.max_pool2d(x, kernel_size=x.shape[2:])
         x = x.view(x.shape[0:2])
 
-        x = F.log_softmax(self.fc_final(x), dim=-1)
+        if not self.conv_features:
+            x = F.log_softmax(self.fc_final(x), dim=-1)
 
         return x
 
