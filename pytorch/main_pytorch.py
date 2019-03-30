@@ -472,10 +472,42 @@ def svm_train(args):
         # 4. remove last fully connected layer
         truc_model = nn.Sequential(*list(model.children())[:-1])
 
-        for name, param in truc_model.named_parameters():
-            print(name)
+   if cuda:
+        truc_model.cuda()
+
+    # Data generator.
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=2)
+    if validate:
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=2) 
 
 
+    generate_func = generator.generate_validate(data_type='validate',  
+                                                shuffle=False, 
+                                                max_iteration=None)  
+    va_generate_func = generator.generate_validate(data_type='validate',  
+                                                shuffle=False, 
+                                                max_iteration=None)   
+
+    # Forward
+    dict = forward(model=truc_model, 
+                   generate_func=generate_func, 
+                   cuda=cuda, 
+                   return_target=True) 
+    va_dict = forward(model=truc_model, 
+                   generate_func=generate_func, 
+                   cuda=cuda, 
+                   return_target=True)  
+                   
+    train_features = dict['output']    # (audios_num, classes_num)
+    train_targets = dict['target']    # (audios_num, 1)     
+
+    val_features = va_dict['output']    # (audios_num, classes_num)
+    val_targets = va_dict['target']    # (audios_num, 1)    
+
+    print("Train features", train_features.shape)    
+    print("Train targets", train_targets.shape)   
+    print("Validation features", val_features.shape)    
+    print("Validation targets", val_targets.shape)  
 
 
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
