@@ -429,6 +429,55 @@ def transfer_train(args, writer):
             break
 
 
+def svm_train(args, writer):
+
+    # New Arugments.
+    # classes_num = args.classes_num
+    pretrained_ckpt = args.pretrained_ckpt
+
+    # Old Arguments
+    workspace = args.workspace
+    cuda = args.cuda
+    validate = args.validate
+    validation_fold = args.validation_fold
+    features_type = args.features_type # logmel
+    features_file_name = args.features_file_name # logmel-feature.h5
+    if validate:
+        va_features_file_name = args.va_features_file_name
+
+    # Parameters.
+    labels = config.labels
+
+    classes_num = len(labels)
+    hdf5_path = os.path.join(workspace, 'features', features_type, features_file_name) # Features to be used for training.
+    if validate:
+        va_hdf5_path = os.path.join(workspace, 'features', features_type, va_features_file_name)
+    models_dir = os.path.join(workspace, 'models') # Directory to save models.
+
+    create_folder(models_dir)
+
+    # Choose the model.
+    if args.model == 'vgg':
+        model = Vggish(classes_num)
+
+        pretrained_dict = torch.load(pretrained_ckpt)['state_dict'] # Ordered dict containing pretrained-weights.
+        model_dict = model.state_dict()
+
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and not k.startswith('fc_')}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict) 
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
+        # 4. remove last fully connected layer
+        truc_model = nn.Sequential(*list(model.classifier.children())[:-1])
+
+        for name, param in model.named_parameters():
+            print(name)
+
+
+
+
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
 
 if __name__ == '__main__':
@@ -477,6 +526,16 @@ if __name__ == '__main__':
     parser_transfer_train.add_argument('--va_features_file_name', required=True, type=str)
     # parser_transfer_train.add_argument('--classes_num', type=int, required=True)
 
+    # Arguments for svm_train
+    parser_svm_train = subparsers.add_parser('svm_train')
+    parser_svm_train.add_argument('--workspace', type=str, required=True)
+    parser_svm_train.add_argument('--model', type=str, required=True)
+    parser_svm_train.add_argument('--pretrained_ckpt', type=str, required=True)
+    parser_svm_train.add_argument('--cuda', action='store_true', default=False) 
+    parser_svm_train.add_argument('--features_file_name', required=True, type=str)
+    parser_svm_train.add_argument('--va_features_file_name', required=True, type=str)  
+    parser_svm_train.add_argument('--validate', action='store_true', default=False)         
+
     args = parser.parse_args()
 
     args.filename = get_filename(__file__)
@@ -494,11 +553,12 @@ if __name__ == '__main__':
         writer = SummaryWriter(tb_logs_dir)
         train(args, writer)
     elif args.mode == 'transfer_train':
-        assert(args.model in ['baselinecnn', 'vgg', 'vggcoordconv', 'resnet18'])
+        assert(args.model in ['vgg', ]) # 'baselinecnn', 'vggcoordconv', 'resnet18'])
         # Create tensorboard logs.
         tb_logs_dir = os.path.join(args.workspace, 'tensorboard-logs', args.filename + '__' + args.model + '__' + '__' + str(datetime.datetime.now()))
         writer = SummaryWriter(tb_logs_dir)        
         transfer_train(args, writer)
+    elif args.mode == 'svm_train':
+        assert(args.model in ['vgg',]) # 'baselinecnn', 'vggcoordconv', 'resnet18'])
     else:
         raise Exception('Error argument!')
-
