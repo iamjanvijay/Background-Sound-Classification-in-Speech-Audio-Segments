@@ -429,7 +429,7 @@ def transfer_train(args, writer):
             break
 
 
-def svm_train(args, writer):
+def svm_train(args):
 
     # New Arugments.
     # classes_num = args.classes_num
@@ -470,9 +470,9 @@ def svm_train(args, writer):
         # 3. load the new state dict
         model.load_state_dict(model_dict)
         # 4. remove last fully connected layer
-        truc_model = nn.Sequential(*list(model.classifier.children())[:-1])
+        truc_model = nn.Sequential(*list(model.children())[:-1])
 
-        for name, param in model.named_parameters():
+        for name, param in truc_model.named_parameters():
             print(name)
 
 
@@ -535,6 +535,8 @@ if __name__ == '__main__':
     parser_svm_train.add_argument('--features_file_name', required=True, type=str)
     parser_svm_train.add_argument('--va_features_file_name', required=True, type=str)  
     parser_svm_train.add_argument('--validate', action='store_true', default=False)         
+    parser_svm_train.add_argument('--validation_fold', type=int, default=False)
+    parser_svm_train.add_argument('--features_type', default='logmel', type=str)
 
     args = parser.parse_args()
 
@@ -560,5 +562,6 @@ if __name__ == '__main__':
         transfer_train(args, writer)
     elif args.mode == 'svm_train':
         assert(args.model in ['vgg',]) # 'baselinecnn', 'vggcoordconv', 'resnet18'])
+        svm_train(args)
     else:
         raise Exception('Error argument!')
