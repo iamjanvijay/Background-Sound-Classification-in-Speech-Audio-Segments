@@ -68,7 +68,7 @@ np.set_printoptions(precision=2)
 
 y_test = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 y_pred = [0, 1, 2, 2, 2, 5, 6, 6, 6, 6, 6]
-class_names = ['tap', 'rickshaw', 'crowd', 'heli', 'formula one', 'guitar', 'road', 'sewing', 'grass cutting', 'nail gun']
+class_names = ['formula_1', 'grass_cutting', 'tap_water', 'helicopter', 'rikshaw', 'cricket', 'guitar', 'sewing', 'stapler', 'traffic']
 # Plot non-normalized confusion matrix
 plot_confusion_matrix(np.asarray(y_test), np.asarray(y_pred), classes=class_names,
                       title='Confusion matrix, without normalization')
