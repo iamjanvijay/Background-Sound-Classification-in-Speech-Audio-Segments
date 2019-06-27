@@ -318,7 +318,7 @@ def transfer_train(args, writer):
         model.load_state_dict(model_dict)
         # 4. freeze model weights for all layers other than fc layers.
         for name, param in model.named_parameters():
-            if name.startswith('fc_'):
+            if not name.startswith('fc_'):
                 param.requires_grad = False
     # elif args.model == 'vggcoordconv':
     #     model = VggishCoordConv(classes_num)
@@ -518,6 +518,7 @@ def svm_train(args):
     clf.fit(train_features, train_targets) 
     val_predictions = clf.predict(val_features)
     print("Accuracy by training SVM on deep features:", np.sum(val_targets==val_predictions)/float(len(val_targets)))
+
 
 
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
