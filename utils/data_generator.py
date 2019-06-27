@@ -11,7 +11,7 @@ import config
 
 class DataGenerator(object):
 
-    def __init__(self, hdf5_path, batch_size, validation_fold, seed=1234):
+    def __init__(self, hdf5_path, batch_size, validation_fold, total_folds=10, seed=1234):
         """
         Inputs:
           hdf5_path: str
@@ -31,7 +31,7 @@ class DataGenerator(object):
 
         self.x = []
         self.y = []
-        for fold_id in range(1, 11):
+        for fold_id in range(1, total_folds+1):
             self.x.append(hf['features_fold{}'.format(fold_id)][:])
             self.y.append(hf['labels_fold{}'.format(fold_id)][:])
 
@@ -39,7 +39,7 @@ class DataGenerator(object):
         logging.info('Loading data time: {:.3f} s'.format(time.time() - load_time))
         
         # Assigning training and validation indices in stacked training data.
-        total_trainig_example = reduce(lambda x, y: x+y, [self.x[fold_id].shape[0] for fold_id in range(0, 10)])
+        total_trainig_example = reduce(lambda x, y: x+y, [self.x[fold_id].shape[0] for fold_id in range(0, total_folds)])
         if validation_fold == 1:
             validation_start = 0
         else:

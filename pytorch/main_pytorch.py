@@ -281,7 +281,6 @@ def transfer_train(args, writer):
     workspace = args.workspace
     cuda = args.cuda
     validate = args.validate
-    # validation_fold = args.validation_fold
     batch_size = args.batch_size
     learning_rate = args.learning_rate
     ckpt_interval = args.ckpt_interval
@@ -331,9 +330,9 @@ def transfer_train(args, writer):
         model.cuda()
 
     # Data generator.
-    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=2)
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=batch_size, validation_fold=args.validation_fold, total_folds=args.total_folds)
     if validate:
-        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=2)
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=batch_size, validation_fold=args.validation_fold, total_folds=args.total_folds)
 
     # Optimizer.
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=(0.9, 0.999), eps=1e-08, weight_decay=0.)
@@ -350,18 +349,18 @@ def transfer_train(args, writer):
 
             train_fin_time = time.time()
 
-            # (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
-            #                              generator=generator,
-            #                              data_type='train',
-            #                              max_iteration=None,
-            #                              plot_title='train_iter_{}'.format(iteration),
-            #                              workspace=workspace,
-            #                              cuda=cuda)
+            (cls_tr_acc, tr_acc, tr_loss) = evaluate(model=model,
+                                         generator=generator,
+                                         data_type='train',
+                                         max_iteration=None,
+                                         plot_title='train_iter_{}'.format(iteration),
+                                         workspace=workspace,
+                                         cuda=cuda)
 
-            # best_tr_acc = max(best_tr_acc, tr_acc)
-            # logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
-            # writer.add_scalar('training_accuracy', tr_acc, iteration)
-            # writer.add_scalar('training_loss', tr_loss, iteration)
+            best_tr_acc = max(best_tr_acc, tr_acc)
+            logging.info('best_tr_acc: {:.3f}, tr_acc: {:.3f}, tr_loss: {:.3f}'.format(best_tr_acc, tr_acc, tr_loss))
+            writer.add_scalar('training_accuracy', tr_acc, iteration)
+            writer.add_scalar('training_loss', tr_loss, iteration)
             # writer.add_scalars('class_wise_training_accuracy', {labels[i]: cls_tr_acc[i] for i in range(10)}, iterations)
 
             if validate:
@@ -440,7 +439,6 @@ def svm_train(args):
     workspace = args.workspace
     cuda = args.cuda
     validate = args.validate
-    validation_fold = args.validation_fold
     features_type = args.features_type # logmel
     features_file_name = args.features_file_name # logmel-feature.h5
     if validate:
@@ -475,9 +473,9 @@ def svm_train(args):
         model.cuda()
 
     # Data generator.
-    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=64, validation_fold=2)
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=64, validation_fold=args.validation_fold, total_folds=args.total_folds)
     if validate:
-        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=64, validation_fold=2) 
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=64, validation_fold=args.validation_fold, total_folds=args.total_folds)
 
 
     generate_func = generator.generate_validate(data_type='train',  
@@ -546,6 +544,8 @@ if __name__ == '__main__':
     parser_transfer_train.add_argument('--workspace', type=str, required=True)
     parser_transfer_train.add_argument('--max_iters', type=int, required=True)
     parser_transfer_train.add_argument('--validate', action='store_true', default=False)
+    parser_transfer_train.add_argument('--validation_fold', type=int, required=True)
+    parser_transfer_train.add_argument('--total_folds', type=int, required=True)
     parser_transfer_train.add_argument('--cuda', action='store_true', default=False)
     parser_transfer_train.add_argument('--learning_rate', default=0.001, type=float)
     parser_transfer_train.add_argument('--batch_size', default=64, type=int)
@@ -567,6 +567,7 @@ if __name__ == '__main__':
     parser_svm_train.add_argument('--va_features_file_name', required=True, type=str)  
     parser_svm_train.add_argument('--validate', action='store_true', default=False)         
     parser_svm_train.add_argument('--validation_fold', type=int, default=False)
+    parser_svm_train.add_argument('--total_folds', type=int, required=True)
     parser_svm_train.add_argument('--features_type', default='logmel', type=str)
 
     args = parser.parse_args()

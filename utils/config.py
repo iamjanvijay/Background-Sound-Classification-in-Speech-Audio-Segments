@@ -7,7 +7,7 @@ mel_bins = 64
 seed = 1234
 
 # dataset = 'UrbanSound8K'
-dataset = 'YBSS-150'
+dataset = 'YBSS-200'
 
 if dataset == 'UrbanSound8K':
 	# Mappings: (as defined in metadata.csv) UrbanSound8K Dataset
@@ -24,15 +24,19 @@ if dataset == 'UrbanSound8K':
 	labels = ['air_conditioner', 'car_horn', 'children_playing', 'dog_bark', 'drilling', 'engine_idling', 'gun_shot', 'jackhammer', 'siren', 'street_music']
 	metadata_delimiter = ','
 
-elif dataset == 'YBSS-150':
-	# Mappings: (as defined in metadata.csv) YBSS-150 Dataset
-	# 0 = auto
-	# 1 = crowd
-	# 2 = formula_1
-	# 3 = guitar
-	# 4 = helicopter
-	# 5 = tap_water
-	labels = ['auto', 'crowd', 'formula_1', 'guitar', 'helicopter', 'tap_water']
+elif dataset == 'YBSS-200':
+	# Mappings: (as defined in metadata.csv) YBSS-200 Dataset
+	# 0 = formula_1
+	# 1 = grass_cutting
+	# 2 = helicopter
+	# 3 = auto
+	# 4 = cricket
+	# 5 = guitar
+	# 6 = sewing_machine
+	# 7 = stapler
+	# 8 = traffic
+	# 9 = water
+	labels = ['formula_1', 'grass_cutting', 'helicopter', 'auto', 'cricket', 'guitar', 'sewing_machine', 'stapler', 'traffic', 'water']
 	metadata_delimiter = '|'
 
 lb_to_ix = {lb: ix for ix, lb in enumerate(labels)}
