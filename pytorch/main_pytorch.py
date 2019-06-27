@@ -24,6 +24,7 @@ from utilities import (create_folder, get_filename, create_logging,
                        plot_confusion_matrix, print_accuracy)
 from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordConv, ResNet18
 from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV
 import config
 
 # Global flags and variables.
@@ -499,9 +500,21 @@ def svm_train(args):
     train_targets = dict['target'].squeeze(axis=1)    # (audios_num,)     
 
     val_features = va_dict['output']    # (audios_num, classes_num)
-    val_targets = va_dict['target'].squeeze(axis=1)     # (audios_num,)   
+    val_targets = va_dict['target'].squeeze(axis=1)     # (audios_num,)  
 
-    clf = SVC(gamma='auto')
+    def svc_param_selection(X, Y, n_folds=4):
+        Cs = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
+        gammas = [0.00001, 0.0001, .001, 0.01, 0.1, 1, 10]
+        kernels = ['linear', 'rbf']
+        param_grid = {'C' : Cs, 'gamma' : gammas, 'kernel': kernels}
+        svc = SVC()
+        grid_search = GridSearchCV(svc, param_grid, cv=n_folds)
+        grid_search.fit(X, Y)
+        return grid_search.best_params_
+
+    best_params = svc_param_selection(train_features, train_targets)
+    print("Using following hyperparameters:", best_params)
+    clf = SVC(**best_params)
     clf.fit(train_features, train_targets) 
     val_predictions = clf.predict(val_features)
     print("Accuracy by training SVM on deep features:", np.sum(val_targets==val_predictions)/float(len(val_targets)))
