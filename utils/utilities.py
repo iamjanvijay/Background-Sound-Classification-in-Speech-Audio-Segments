@@ -10,6 +10,7 @@ import config
 import shutil
 import pandas as pd
 import subprocess
+import random
 
 AUDIO_AUG_MODE_RANDOM = 0
 AUDIO_AUG_MODE_NOISE_DATA = 1
@@ -20,11 +21,13 @@ def create_folder(fd):
     if not os.path.exists(fd):
         os.makedirs(fd)
 
-def read_audio(path, target_fs=None, mode='repeat'):
-    audio, fs = librosa.core.load(path, sr=target_fs, mono=True, duration=4)
+def read_audio(path, target_fs=None, mode='repeat', type='audio'):
+    audio, fs = librosa.core.load(path, sr=target_fs, mono=True)
 
     # If audio length is less than 4 seconds, appends silence (zeros) at end.
     target_num_samples = fs * 4
+    if type == 'audio':
+        audio = audio[:target_num_samples]
     if target_num_samples != len(audio):
         if mode == 'append_zeros':
             audio = np.concatenate((audio, np.zeros(target_num_samples - len(audio))))
@@ -275,7 +278,11 @@ def augment_audio_file(audio_file, out_filename=None, mixing_param=0.005, noise_
     audio_data, fs = read_audio(audio_file, config.sample_rate)
     noise_data = None
     if noise_file is not None:
-        noise_data, fs = read_audio(noise_file, config.sample_rate)
+        noise_data, fs = read_audio(noise_file, config.sample_rate, type='noise')
+
+    # Cut the speech audio from the mid, so that speech is included in significant part of augmented audio.
+    num_samples = config.sample_rate * 4
+    noise_data = noise_data[len(noise_data)//2 - num_samples//2 : len(noise_data)//2 + num_samples//2]
 
     aug_audio = augment_audio_data(audio_data, mixing_param, noise_data, mode)
 
@@ -322,6 +329,58 @@ def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise
             out_full_path = os.path.join(output_folder, os.path.basename(filename))
             augment_audio_file(filename, out_full_path, mixing_param, noise_file, mode)
             count += 1
+
+    print("Augmented {} files generated in folder {}".format(count, output_folder))
+
+
+def random_augmentation(input_audio_folder, input_speech_folder, files_per_audio, range_min, range_max, output_folder):
+    count = 0
+
+    #read the path of all the speech files
+    speaker_id = 0
+    id_to_speaker_id = dict()
+    speech_files = list()
+    for dirName, subdirList, fileList in os.walk(input_speech_folder):
+        for file in fileList:
+            if file.endswith('.wav') and not file.startswith('._'):
+                id = file.strip().split('_')[0]
+                if id not in id_to_speaker_id:
+                    id_to_speaker_id[id] = speaker_id
+                    speaker_id+=1
+                    speech_files.append(list())
+                speech_files[id_to_speaker_id[id]].append(os.path.join(dirName, file))
+
+    #create directory if absent
+    create_folder(output_folder)
+
+    for dirName, subdirList, fileList in os.walk(input_audio_folder):
+
+        for subdir in subdirList:
+            new_folder_path = os.path.join(output_folder, os.path.relpath(os.path.join(dirName, subdir), input_audio_folder))
+            print("Creating folder : {}".format(new_folder_path))
+            create_folder(new_folder_path)
+
+        print("Processing folder {}".format(dirName))
+
+        for file in fileList:
+            if file.endswith('.wav'):
+                filepath = os.path.join(dirName, file)
+                print ("Processing file : {}".format(filepath))
+                out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_audio_folder))
+                file_name = out_full_path.strip().split('/')[-1]
+                folder_name = '/'.join(out_full_path.strip().split('/')[:-1])
+                for i in range(files_per_audio):
+                    mixing_param = random.uniform(range_min, range_max)
+                    noise_file = random.choice(random.choice(speech_files))
+                    out_full_path = folder_name + '/{}_'.format(i+1) + file_name
+                    print("Augmenting {} with {} and mixing parameter {}.".format(filepath, noise_file, mixing_param))
+                    print("Saving file as {}.".format(out_full_path))
+                    augment_audio_file(filepath, out_full_path, mixing_param, noise_file, AUDIO_AUG_MODE_NOISE_DATA)
+                count += 1
+            else: # Copy other files as it as.
+                filepath = os.path.join(dirName, file)
+                out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_audio_folder))
+                shutil.copy2(filepath, out_full_path)
 
     print("Augmented {} files generated in folder {}".format(count, output_folder))
 
