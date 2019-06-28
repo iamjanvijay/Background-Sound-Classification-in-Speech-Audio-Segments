@@ -25,6 +25,7 @@ from utilities import (create_folder, get_filename, create_logging,
 from models_pytorch import move_data_to_gpu, BaselineCnn, Vggish, VggishCoordConv, ResNet18
 from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
+from sklearn.neural_network import MLPClassifier
 import config
 
 # Global flags and variables.
@@ -394,16 +395,16 @@ def transfer_train(args, writer):
             train_bgn_time = time.time()
 
         # Save model
-        if iteration % ckpt_interval == 0 and iteration > 0:
+        # if iteration % ckpt_interval == 0 and iteration > 0:
 
-            save_out_dict = {'iteration': iteration,
-                             'state_dict': model.state_dict(),
-                             'optimizer': optimizer.state_dict()
-                             }
-            save_out_path = os.path.join(
-                models_dir, 'md_{}_{}_{}_iters_transfer.tar'.format(iteration, features_file_name, va_features_file_name))
-            torch.save(save_out_dict, save_out_path)
-            logging.info('Model saved to {}'.format(save_out_path))
+        #     save_out_dict = {'iteration': iteration,
+        #                      'state_dict': model.state_dict(),
+        #                      'optimizer': optimizer.state_dict()
+        #                      }
+        #     save_out_path = os.path.join(
+        #         models_dir, 'md_{}_{}_{}_iters_transfer.tar'.format(iteration, features_file_name, va_features_file_name))
+        #     torch.save(save_out_dict, save_out_path)
+        #     logging.info('Model saved to {}'.format(save_out_path))
             
         # Reduce learning rate
         if iteration % lrdecay_interval == 0 and iteration > 0:
@@ -519,6 +520,97 @@ def svm_train(args):
     val_predictions = clf.predict(val_features)
     print("Accuracy by training SVM on deep features:", np.sum(val_targets==val_predictions)/float(len(val_targets)))
 
+def mlp_train(args):
+
+    # New Arugments.
+    # classes_num = args.classes_num
+    pretrained_ckpt = args.pretrained_ckpt
+
+    # Old Arguments
+    workspace = args.workspace
+    cuda = args.cuda
+    validate = args.validate
+    features_type = args.features_type # logmel
+    features_file_name = args.features_file_name # logmel-feature.h5
+    if validate:
+        va_features_file_name = args.va_features_file_name
+
+    # Parameters.
+    labels = config.labels
+
+    classes_num = len(labels)
+    hdf5_path = os.path.join(workspace, 'features', features_type, features_file_name) # Features to be used for training.
+    if validate:
+        va_hdf5_path = os.path.join(workspace, 'features', features_type, va_features_file_name)
+    models_dir = os.path.join(workspace, 'models') # Directory to save models.
+
+    create_folder(models_dir)
+
+    # Choose the model.
+    if args.model == 'vgg':
+        model = Vggish(classes_num, conv_features=True)
+
+        pretrained_dict = torch.load(pretrained_ckpt)['state_dict'] # Ordered dict containing pretrained-weights.
+        model_dict = model.state_dict()
+
+        # 1. filter out unnecessary keys
+        pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict and not k.startswith('fc_')}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(pretrained_dict) 
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
+
+    if cuda:
+        model.cuda()
+
+    # Data generator.
+    generator = DataGenerator(hdf5_path=hdf5_path, batch_size=64, validation_fold=args.validation_fold, total_folds=args.total_folds)
+    if validate:
+        va_generator = DataGenerator(hdf5_path=va_hdf5_path, batch_size=64, validation_fold=args.validation_fold, total_folds=args.total_folds)
+
+
+    generate_func = generator.generate_validate(data_type='train',  
+                                                shuffle=False, 
+                                                max_iteration=None)  
+    va_generate_func = generator.generate_validate(data_type='validate',  
+                                                shuffle=False, 
+                                                max_iteration=None)   
+
+    # Forward
+    dict = forward(model=model, 
+                   generate_func=generate_func, 
+                   cuda=cuda, 
+                   return_target=True) 
+    va_dict = forward(model=model, 
+                   generate_func=va_generate_func, 
+                   cuda=cuda, 
+                   return_target=True)  
+                   
+    train_features = dict['output']    # (audios_num, classes_num)
+    train_targets = dict['target'].squeeze(axis=1)    # (audios_num,)     
+
+    val_features = va_dict['output']    # (audios_num, classes_num)
+    val_targets = va_dict['target'].squeeze(axis=1)     # (audios_num,)  
+
+    def mlp_param_selection(X, Y, n_folds=4):
+        hidden_layer_sizes = [(512, 10), (512, 256, 10), (512, 256, 128, 10)]
+        activations = ['tanh', 'relu']
+        solvers = ['sgd', 'adam']
+        alphas = [0.0001, 0.001, 0.01, 0.1]
+        learning_rates = ['constant','adaptive']
+        param_grid = {'hidden_layer_sizes' : hidden_layer_sizes, 'activation' : activations, 'solver' : solvers, 'alpha' : alphas, 'learning_rate' : learning_rates}
+        NN = MLPClassifier(max_iter=15000)
+        grid_search = GridSearchCV(NN, param_grid, cv=n_folds)
+        grid_search.fit(X, Y)
+        return grid_search.best_params_
+
+    best_params = mlp_param_selection(train_features, train_targets)
+    print("Using following hyperparameters:", best_params)
+    NN = MLPClassifier(max_iter=15000, **best_params)
+    NN.fit(train_features, train_targets) 
+    val_predictions = NN.predict(val_features)
+    print(val_predictions)
+    print("Accuracy by training MLP on deep features:", np.sum(val_targets==val_predictions)/float(len(val_targets)))
 
 
 # USAGE: python pytorch/main_pytorch.py train --workspace='workspace' --validation_fold='10' --validate --cuda
@@ -584,6 +676,19 @@ if __name__ == '__main__':
     parser_svm_train.add_argument('--total_folds', type=int, required=True)
     parser_svm_train.add_argument('--features_type', default='logmel', type=str)
 
+    # Arguments for mlp_train
+    parser_mlp_train = subparsers.add_parser('mlp_train')
+    parser_mlp_train.add_argument('--workspace', type=str, required=True)
+    parser_mlp_train.add_argument('--model', type=str, required=True)
+    parser_mlp_train.add_argument('--pretrained_ckpt', type=str, required=True)
+    parser_mlp_train.add_argument('--cuda', action='store_true', default=False) 
+    parser_mlp_train.add_argument('--features_file_name', required=True, type=str)
+    parser_mlp_train.add_argument('--va_features_file_name', required=True, type=str)  
+    parser_mlp_train.add_argument('--validate', action='store_true', default=False)         
+    parser_mlp_train.add_argument('--validation_fold', type=int, default=False)
+    parser_mlp_train.add_argument('--total_folds', type=int, required=True)
+    parser_mlp_train.add_argument('--features_type', default='logmel', type=str)    
+
     args = parser.parse_args()
 
     args.filename = get_filename(__file__)
@@ -609,5 +714,8 @@ if __name__ == '__main__':
     elif args.mode == 'svm_train':
         assert(args.model in ['vgg',]) # 'baselinecnn', 'vggcoordconv', 'resnet18'])
         svm_train(args)
+    elif args.mode == 'mlp_train':
+        assert(args.model in ['vgg',]) # 'baselinecnn', 'vggcoordconv', 'resnet18'])
+        mlp_train(args)
     else:
         raise Exception('Error argument!')
