@@ -11,6 +11,10 @@ import shutil
 import pandas as pd
 import subprocess
 import random
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from multiprocessing import cpu_count
+import tqdm
 
 AUDIO_AUG_MODE_RANDOM = 0
 AUDIO_AUG_MODE_NOISE_DATA = 1
@@ -336,6 +340,11 @@ def augment_audio_folder(input_folder, output_folder,  mixing_param=0.005, noise
 def random_augmentation(input_audio_folder, input_speech_folder, files_per_audio, range_min, range_max, output_folder):
     count = 0
 
+    n_jobs = cpu_count()
+    executor = ProcessPoolExecutor(max_workers=n_jobs)
+    futures = []
+    print("Using {} workers in parallel.".format(n_jobs))
+
     #read the path of all the speech files
     speaker_id = 0
     id_to_speaker_id = dict()
@@ -365,7 +374,6 @@ def random_augmentation(input_audio_folder, input_speech_folder, files_per_audio
         for file in fileList:
             if file.endswith('.wav'):
                 filepath = os.path.join(dirName, file)
-                print ("Processing file : {}".format(filepath))
                 out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_audio_folder))
                 file_name = out_full_path.strip().split('/')[-1]
                 folder_name = '/'.join(out_full_path.strip().split('/')[:-1])
@@ -373,16 +381,12 @@ def random_augmentation(input_audio_folder, input_speech_folder, files_per_audio
                     mixing_param = random.uniform(range_min, range_max)
                     noise_file = random.choice(random.choice(speech_files))
                     out_full_path = folder_name + '/{}_'.format(i+1) + file_name
-                    print("Augmenting {} with {} and mixing parameter {}.".format(filepath, noise_file, mixing_param))
-                    print("Saving file as {}.".format(out_full_path))
-                    augment_audio_file(filepath, out_full_path, mixing_param, noise_file, AUDIO_AUG_MODE_NOISE_DATA)
+                    futures.append(executor.submit(partial(augment_audio_file, filepath, out_full_path, mixing_param, noise_file, AUDIO_AUG_MODE_NOISE_DATA)))
                 count += 1
             else: # Copy other files as it as.
                 filepath = os.path.join(dirName, file)
                 out_full_path = os.path.join(output_folder, os.path.relpath(filepath, input_audio_folder))
                 shutil.copy2(filepath, out_full_path)
-
-    print("Augmented {} files generated in folder {}".format(count, output_folder))
 
 
 def separate_fg_bg(input_folder, output_folder):
