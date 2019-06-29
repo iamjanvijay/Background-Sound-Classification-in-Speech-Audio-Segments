@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import time
 import csv
 import random
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
+from multiprocessing import cpu_count
 
 from utilities import read_audio, create_folder, read_meta
 import config
@@ -61,7 +64,7 @@ class LogMelExtractor():
         return x
 
 
-def calculate_logmel(audio_path, sample_rate, feature_extractor):
+def calculate_logmel(audio_path, sample_rate, feature_extractor, n=-1):
     
     # Read audio (first 4 seconds only).
     (audio, fs) = read_audio(audio_path, target_fs=sample_rate)
@@ -69,10 +72,15 @@ def calculate_logmel(audio_path, sample_rate, feature_extractor):
     # Extract feature
     feature = feature_extractor.transform(audio)
     
-    return feature
+    return feature, n
     
     
 def calculate_features(args):
+
+    n_jobs = cpu_count()
+    executor = ProcessPoolExecutor(max_workers=n_jobs)
+    futures = []
+    print("Using {} workers in parallel.".format(n_jobs))
     
     # Arguments. 
     dataset_dir = args.dataset_dir
@@ -137,28 +145,29 @@ def calculate_features(args):
     # To remember number of audio files processed in each fold. 
     fold_count = [0] * 11               
     
-    for (n, audio_name) in tqdm(enumerate(audio_names)):
+    for (n, audio_name) in enumerate(audio_names):
 
         # Calculate feature.
-        audio_path = os.path.join(audio_dir, 'fold{}'.format(folds[n]), audio_name) 
-        
-        # Extract feature.
-        feature = calculate_logmel(audio_path=audio_path, 
-                                    sample_rate=sample_rate, 
-                                    feature_extractor=feature_extractor)
+        audio_path = os.path.join(audio_dir, 'fold{}'.format(folds[n]), audio_name)         
+        futures.append(executor.submit(partial(calculate_logmel, audio_path, sample_rate, feature_extractor, n)))
 
-        hf['features_fold{}'.format(folds[n])].resize((fold_count[folds[n]] + 1, seq_len, mel_bins))
-        hf['features_fold{}'.format(folds[n])][fold_count[folds[n]]] = feature
+    for future in tqdm(futures):
+        if future.result() is not None:
+            feature, n = future.result()
 
-        hf['labels_fold{}'.format(folds[n])].resize((fold_count[folds[n]] + 1, 1))
-        hf['labels_fold{}'.format(folds[n])][fold_count[folds[n]]] = class_IDs[n]   
+            hf['features_fold{}'.format(folds[n])].resize((fold_count[folds[n]] + 1, seq_len, mel_bins))
+            hf['features_fold{}'.format(folds[n])][fold_count[folds[n]]] = feature
 
-        fold_count[folds[n]] += 1     
-        
-        # Plot log-Mel for debug.
-        if PLOT_FEATURES:
-            plt.matshow(feature.T, origin='lower', aspect='auto', cmap='jet')
-            plt.show()
+            hf['labels_fold{}'.format(folds[n])].resize((fold_count[folds[n]] + 1, 1))
+            hf['labels_fold{}'.format(folds[n])][fold_count[folds[n]]] = class_IDs[n]   
+
+            fold_count[folds[n]] += 1     
+            
+            # Plot log-Mel for debug.
+            if PLOT_FEATURES:
+                plt.matshow(feature.T, origin='lower', aspect='auto', cmap='jet')
+                plt.show()
+
 
     hf.close()
 
